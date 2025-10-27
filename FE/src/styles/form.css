@@ -1,0 +1,111 @@
+/* src/styles/form.css */
+
+/* --- Layout chung --- */
+.new-exam-container {
+    padding: 30px 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
+
+.title {
+    font-size: 2.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 24px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+    margin-top: 32px;
+    margin-bottom: 24px;
+}
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+.section-hint {
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+/* --- Form Fields --- */
+.form-field {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.form-field__label {
+    width: 200px; /* Độ rộng cố định cho nhãn */
+    font-size: 1rem;
+    color: #4b5563;
+}
+
+.form-field__input {
+    flex-grow: 1;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #1f2937;
+    transition: border-color 0.2s;
+}
+.form-field__input:focus {
+    outline: none;
+    border-color: #4f46e5;
+}
+
+/* --- Next Button --- */
+.next-button {
+    background-color: #f97316; /* Màu cam */
+    color: white;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    float: right;
+    margin-top: 32px;
+    transition: background-color 0.2s;
+}
+.next-button:hover {
+    background-color: #ea580c;
+}
+
+/* --- Tabs --- */
+.tabs-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+}
+
+.tab-item {
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+/* Active Tab: Màu cam nhạt và chữ cam */
+.tab-item--active {
+    background-color: #fff7ed; /* Cam rất nhạt */
+    color: #f97316;
+    border-color: #f97316;
+}
+
+/* Inactive Tab: Màu xám/trắng */
+.tab-item--inactive {
+    background-color: #f3f4f6;
+    color: #4b5563;
+}
+.tab-item--inactive:hover {
+    background-color: #e5e7eb;
+}

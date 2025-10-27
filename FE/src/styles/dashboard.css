@@ -1,0 +1,116 @@
+/* src/styles/dashboard.css */
+
+/* --- Định nghĩa biến (Custom Properties) để dễ thay đổi màu sắc --- */
+:root {
+  --color-primary: #f87171; /* Màu đỏ cho New Exam */
+  --color-secondary: #fcd34d; /* Màu vàng cho Ongoing */
+  --color-tertiary: #fecaca; /* Màu hồng nhạt cho nền */
+  --color-graded: #ff7f50; /* Màu cam nhạt cho Graded */
+  --color-text-dark: #374151;
+  --color-text-light: #6b7280;
+  --color-action: #2563eb;
+}
+
+/* --- Block: Dashboard Container --- */
+.dashboard-container {
+  min-height: 100vh;
+  background-color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--color-text-dark);
+}
+
+.dashboard-main {
+  max-width: 960px; /* Tương đương max-w-4xl */
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.dashboard-title {
+  font-size: 2.25rem; /* 36px */
+  font-weight: 600;
+}
+
+/* --- Block: Exam List --- */
+.exam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- Element: Card (Thẻ) --- */
+.exam-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); /* Shadow nhẹ */
+}
+.exam-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+.exam-card__info {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.exam-card__date {
+    color: var(--color-text-light);
+    font-size: 0.875rem;
+}
+
+/* --- Modifier: New Exam (Màu đỏ/hồng) --- */
+.exam-card--new {
+  background-color: #fcebeb; /* Rất nhạt */
+  color: var(--color-primary);
+  font-size: 1.125rem; /* Hơi lớn hơn */
+  font-weight: 600;
+}
+.exam-card--new:hover {
+    background-color: #fddddd;
+}
+
+/* --- Modifier: Ongoing/List Header (Màu vàng nhạt) --- */
+.exam-card--ongoing-header {
+  background-color: #fffbeb;
+  color: var(--color-text-dark);
+  font-weight: 500;
+}
+
+/* --- Modifier: Ongoing Item (Màu vàng đậm hơn) --- */
+.exam-card--ongoing-item {
+  background-color: #fef3c7;
+  color: var(--color-text-dark);
+}
+.exam-card--ongoing-item:hover {
+    background-color: #fde68a;
+}
+.exam-card__upload-rubric {
+    color: var(--color-action);
+    font-size: 0.875rem;
+}
+
+/* --- Modifier: Graded/Old Exam (Màu cam/hồng đào) --- */
+.exam-card--graded-item {
+  background-color: #ffefe6;
+  color: var(--color-text-dark);
+}
+.exam-card--graded-item:hover {
+    background-color: #fdd2c5;
+}
+.exam-card__graded-label {
+    color: #065f46; /* Xanh lá cây */
+    font-weight: 600;
+    font-size: 0.875rem;
+}
