@@ -1,6 +1,8 @@
 # 1_Dashboard.py
 import streamlit as st
 
+
+
 st.set_page_config(
     page_title="GoodPoint Dashboard",
     layout="centered"
@@ -11,7 +13,9 @@ st.caption("Create a new exam or select a previous one")
 
 # Nút "New Exam" sẽ tự động điều hướng đến file "pages/2_New_Exam.py"
 # Chúng ta dùng st.page_link (Streamlit 1.33+)
-st.page_link("pages/New_Exam.py", label="+ New Exam", use_container_width=True, icon="📄")
+# st.page_link("pages/New_Exam.py", label="+ New Exam", use_container_width=True, icon="📄")
+if st.button("📄 + New Exam", use_container_width=True):
+    st.switch_page("pages/New_Exam.py")
 
 st.divider()
 

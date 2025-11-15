@@ -1,7 +1,6 @@
 # pages/2_New_Exam.py
 import streamlit as st
 import time
-# 1. Import các module tab của bạn
 from tabs import info_tab, rubric_tab, answers_tab, grading_tab
 if "show_toast" in st.session_state:
     st.toast(st.session_state.show_toast, icon="🎉")
