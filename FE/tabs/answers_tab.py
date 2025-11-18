@@ -2,32 +2,90 @@ import streamlit as st
 import time
 
 # --- ĐỊNH NGHĨA DIALOGS ---
-# (Các hàm dialog chỉ được dùng bởi tab này, nên đặt chúng ở đây)
-@st.dialog("Upload and Link Student Paper")
+@st.dialog("Upload Student Paper")
 def upload_and_link_dialog():
-    st.write("Upload PDF:")
+    st.write("Step 1: Upload the PDF file")
     uploaded_file = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed")
+    
     if uploaded_file:
-        student_names = [s["name"] for s in st.session_state.student_roster]
-        selected_name = st.selectbox("Find student", options=student_names, index=None)
-        if st.button("Link File", type="primary"):
-            for i, student in enumerate(st.session_state.student_roster):
-                if student["name"] == selected_name:
-                    st.session_state.student_roster[i]["file"] = uploaded_file.name
+        st.divider()
+        st.write("Step 2: Enter Student Details for this paper")
+        
+        # Form để điền thông tin thủ công
+        with st.form("manual_link_form"):
+            name = st.text_input("Full Name")
+            student_id = st.text_input("Student ID")
+            email = st.text_input("Email")
+            
+            if st.form_submit_button("Save & Link File", type="primary"):
+                if not name or not student_id:
+                    st.error("Name and ID are required.")
+                else:
+                    # Tạo object sinh viên mới kèm file
+                    new_student_with_file = {
+                        "id": student_id,
+                        "name": name,
+                        "email": email,
+                        "file": uploaded_file.name, # Gán file luôn
+                        "processed_content": None
+                    }
+                    
+                    # Thêm vào danh sách lớp
+                    st.session_state.student_roster.append(new_student_with_file)
+                    st.success(f"Added & Linked: {name}")
+                    time.sleep(0.5)
                     st.rerun()
-                    break
 
-@st.dialog("Add New Student to Roster")
+# --- 2. HÀM ADD STUDENT (Đã sửa: Thanh Search từ Database giả lập) ---
+@st.dialog("Add Student from Database")
 def add_student_dialog():
-    with st.form(key="new_student_form"):
-        name = st.text_input("Full Name")
-        student_id = st.text_input("Student ID")
-        email = st.text_input("Email")
-        if st.form_submit_button("Add Student"):
-            new_student = {"id": student_id, "name": name, "email": email, "file": None}
-            st.session_state.student_roster.append(new_student)
-            st.rerun()
-
+    st.write("Search for an existing student to add to the roster:")
+    
+    # --- GIẢ LẬP DATABASE TOÀN TRƯỜNG ---
+    # Trong thực tế, cái này sẽ gọi API hoặc DB
+    mock_database = [
+        {"id": "23029999", "name": "Lê Văn Luyện", "email": "luyen@example.com"},
+        {"id": "23028888", "name": "Trần Thị Bưởi", "email": "buoi@example.com"},
+        {"id": "23027777", "name": "Ngô Bá Khá", "email": "kha@example.com"},
+        {"id": "23026666", "name": "Đỗ Nam Trung", "email": "trung@example.com"},
+    ]
+    
+    # Tạo list hiển thị cho Selectbox (Format: "Name - ID")
+    search_options = {f"{s['name']} - {s['id']}": s for s in mock_database}
+    
+    # Thanh tìm kiếm (Selectbox hoạt động như search)
+    selected_option = st.selectbox(
+        "Search student", 
+        options=list(search_options.keys()), 
+        index=None, 
+        placeholder="Type name or ID to search..."
+    )
+    
+    if selected_option:
+        # Lấy thông tin chi tiết từ selection
+        student_data = search_options[selected_option]
+        
+        st.info(f"Selected: **{student_data['name']}** ({student_data['email']})")
+        
+        if st.button("Add to Roster", type="primary"):
+            # Kiểm tra xem đã có trong lớp chưa để tránh trùng
+            existing_ids = [s['id'] for s in st.session_state.student_roster if s['id'] != 'none']
+            
+            if student_data['id'] in existing_ids:
+                st.warning("This student is already in the roster.")
+            else:
+                # Thêm vào roster (chưa có file)
+                new_student = {
+                    "id": student_data['id'],
+                    "name": student_data['name'],
+                    "email": student_data['email'],
+                    "file": None, # Chưa có file
+                    "processed_content": None
+                }
+                st.session_state.student_roster.append(new_student)
+                st.success(f"Successfully added {student_data['name']}!")
+                time.sleep(0.5)
+                st.rerun()
 # --- HÀM RENDER CHÍNH ---
 def render():
     """Vẽ nội dung của tab Student Answers"""
