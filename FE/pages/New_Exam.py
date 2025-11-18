@@ -6,7 +6,7 @@ if "show_toast" in st.session_state:
     st.toast(st.session_state.show_toast, icon="🎉")
     del st.session_state.show_toast
 st.set_page_config(layout="wide")
-st.title("Mechanics 1")
+st.title("Exam 1")
 
 # --- QUẢN LÝ TRẠNG THÁI (State Management) ---
 if 'current_step' not in st.session_state:

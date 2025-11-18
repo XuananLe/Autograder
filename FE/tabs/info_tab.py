@@ -12,10 +12,10 @@ def render():
             st.text_input("Department", "Mathematics")
             st.text_input("Course Title", "Biomechanics")
         with col2:
-            st.selectbox("Course Level", ["Undergraduate", "Postgraduate"])
+            st.text_input("Course Level", "Computer Vision")
             st.text_input("Subject", "Bone Mechanics")
             st.date_input("Date")
-
+        st.date_input("Due")
         if st.form_submit_button("Save & Unlock Rubric"):
             # Ghi vào state để mở khóa tab tiếp theo
             st.session_state.info_complete = True 
