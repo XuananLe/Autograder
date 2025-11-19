@@ -119,16 +119,31 @@ def render():
                 col_d3.write(student["email"])
                 
                 # Nút "View" (Giữ nguyên)
-                if col_d4.button("View", key=f"view_{student['id']}"):
-                    with st.dialog("Student Details"):
-                        st.image("https.i.imgur.com/331iCIw.png")
-                        st.subheader(student["name"])
-                        st.write(f"**ID:** {student['id']}")
-                        st.write(f"**Email:** {student['email']}")
-                        if student["file"]:
-                            st.write(f"**File Linked:** {student['file']}")
-                        else:
-                            st.write(f"**File Linked:** None")
+                if student.get("file"): 
+                    if col_d4.button("View", key=f"view_{student['id']}"):
+                        @st.dialog("Student Details", width="large")
+                        def show_details(s):
+                            with st.container(height=600):
+                        # Chia làm 2 cột: Cột trái (Info), Cột phải (Bài làm)
+                                col_info, col_paper = st.columns([1, 2]) 
+                                
+                                with col_info:
+                                    st.subheader(s["name"])
+                                    st.write(f"**ID:** {s['id']}")
+                                    st.write(f"**Email:** {s['email']}")
+                                    st.write(f"**File Linked:** {s.get('file', 'None')}")
+                                
+                                with col_paper:
+                                    st.subheader("Exam Paper Preview")
+                                    if s.get('file'):
+                                        # Hiển thị ảnh giả lập bài làm (hoặc PDF viewer)
+                                        st.image("https://i.imgur.com/gKk9Nf2.png", caption=f"File: {s['file']}")
+                                    else:
+                                        st.info("No paper linked yet.")
+                        show_details(student)
+                else:
+                    # Nếu chưa có bài làm, để trống hoặc hiện dấu gạch ngang
+                    col_d4.write("-")
 
                 # Trạng thái (Status) (Giữ nguyên)
                 if student["file"] is not None:

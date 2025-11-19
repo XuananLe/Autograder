@@ -2,12 +2,16 @@
 import streamlit as st
 import time
 from tabs import info_tab, rubric_tab, answers_tab, grading_tab
+
+if 'exam_name' not in st.session_state:
+    st.session_state.exam_name = "Exam 1" # Tên mặc định
+if 'edit_title_mode' not in st.session_state:
+    st.session_state.edit_title_mode = False
 if "show_toast" in st.session_state:
     st.toast(st.session_state.show_toast, icon="🎉")
     del st.session_state.show_toast
 st.set_page_config(layout="wide")
-st.title("Exam 1")
-
+    
 # --- QUẢN LÝ TRẠNG THÁI (State Management) ---
 if 'current_step' not in st.session_state:
     st.session_state.current_step = 0
@@ -175,6 +179,36 @@ if 'processed_questions' not in st.session_state:
         },
     ]
 
+col_header, col_edit_btn = st.columns([8, 1])
+
+with col_header:
+    if st.session_state.edit_title_mode:
+        # CHẾ ĐỘ SỬA: Hiển thị ô nhập liệu
+        new_title = st.text_input(
+            "Enter Exam Name", 
+            value=st.session_state.exam_name, 
+            label_visibility="collapsed" # Ẩn nhãn cho đẹp
+        )
+    else:
+        # CHẾ ĐỘ XEM: Hiển thị Title bình thường
+        st.title(st.session_state.exam_name)
+
+with col_edit_btn:
+    # Căn chỉnh nút bấm xuống dưới một chút cho thẳng hàng với Title
+    st.write("") 
+    st.write("") 
+    
+    if st.session_state.edit_title_mode:
+        # Nút LƯU
+        if st.button("💾", help="Save Title"):
+            st.session_state.exam_name = new_title # Cập nhật tên mới
+            st.session_state.edit_title_mode = False # Tắt chế độ sửa
+            st.rerun()
+    else:
+        # Nút SỬA
+        if st.button("✏️", help="Edit Title"):
+            st.session_state.edit_title_mode = True # Bật chế độ sửa
+            st.rerun()
 
 # --- VẼ CÁC TABS (Giao diện chính) ---
 tab_info, tab_rubric, tab_answers, tab_grading = st.tabs([
