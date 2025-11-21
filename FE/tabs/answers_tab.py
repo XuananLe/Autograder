@@ -1,216 +1,224 @@
 import streamlit as st
 import time
+from services import api
 
 # --- ĐỊNH NGHĨA DIALOGS ---
+
 @st.dialog("Upload Student Paper")
 def upload_and_link_dialog():
-    st.write("Step 1: Upload the PDF file")
-    uploaded_file = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed")
+    exam_id = st.session_state.get("current_exam_id")
+    
+    st.write("Bước 1: Tải lên file bài làm (PDF)")
+    uploaded_file = st.file_uploader("Chọn file PDF", type=["pdf"], label_visibility="collapsed")
     
     if uploaded_file:
         st.divider()
-        st.write("Step 2: Enter Student Details for this paper")
+        st.write("Bước 2: Nhập thông tin sinh viên cho bài này")
         
-        # Form để điền thông tin thủ công
         with st.form("manual_link_form"):
-            name = st.text_input("Full Name")
-            student_id = st.text_input("Student ID")
-            email = st.text_input("Email")
+            col1, col2 = st.columns(2)
+            with col1:
+                student_id = st.text_input("Mã Sinh Viên (ID)")
+            with col2:
+                name = st.text_input("Họ và Tên")
             
-            if st.form_submit_button("Save & Link File", type="primary"):
+            email = st.text_input("Email (Tùy chọn)")
+            
+            if st.form_submit_button("Lưu & Liên kết File", type="primary"):
                 if not name or not student_id:
-                    st.error("Name and ID are required.")
+                    st.error("Vui lòng nhập Tên và Mã SV.")
                 else:
-                    # Tạo object sinh viên mới kèm file
-                    new_student_with_file = {
-                        "id": student_id,
-                        "name": name,
-                        "email": email,
-                        "file": uploaded_file.name, # Gán file luôn
-                        "processed_content": None
-                    }
-                    
-                    # Thêm vào danh sách lớp
-                    st.session_state.student_roster.append(new_student_with_file)
-                    st.success(f"Added & Linked: {name}")
-                    time.sleep(0.5)
-                    st.rerun()
+                    try:
+                        # 1. Upload file lên Server lấy URL trước
+                        with st.spinner("Đang tải file lên server..."):
+                            upload_resp = api.upload_file(uploaded_file)
+                        
+                        if not upload_resp:
+                            st.error("Lỗi: Không thể upload file lên server.")
+                            return
 
-# --- 2. HÀM ADD STUDENT (Đã sửa: Thanh Search từ Database giả lập) ---
+                        file_url = upload_resp.get("url") # Lấy URL file từ server trả về
+
+                        # 2. Gửi thông tin SV + URL file vào danh sách
+                        payload = {
+                            "student_id": student_id,
+                            "name": name,
+                            "email": email,
+                            "file_url": file_url # <--- QUAN TRỌNG: Link file vào SV
+                        }
+                        
+                        if api.add_student_to_roster(exam_id, payload):
+                            st.toast(f"Đã thêm bài làm của: {name}", icon="✅")
+                            st.session_state.force_reload = True # Báo hiệu reload data
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Không thể thêm sinh viên. Có thể ID đã tồn tại.")
+                            
+                    except Exception as e:
+                        st.error(f"Đã xảy ra lỗi: {e}")
+
+# --- 2. HÀM ADD STUDENT ---
 @st.dialog("Add Student from Database")
 def add_student_dialog():
-    st.write("Search for an existing student to add to the roster:")
+    exam_id = st.session_state.get("current_exam_id")
+    st.write("Tìm kiếm sinh viên trong CSDL trường:")
     
-    # --- GIẢ LẬP DATABASE TOÀN TRƯỜNG ---
-    # Trong thực tế, cái này sẽ gọi API hoặc DB
+    # Mock DB để search (Client side)
+    # Trong thực tế bạn dùng api.search_students(query)
     mock_database = [
-        {"id": "23029999", "name": "Lê Văn Luyện", "email": "luyen@example.com"},
-        {"id": "23028888", "name": "Trần Thị Bưởi", "email": "buoi@example.com"},
-        {"id": "23027777", "name": "Ngô Bá Khá", "email": "kha@example.com"},
-        {"id": "23026666", "name": "Đỗ Nam Trung", "email": "trung@example.com"},
+        {"id": "23020001", "name": "Nguyen Van A", "email": "a@vnu.edu.vn"},
+        {"id": "23020002", "name": "Tran Thi B", "email": "b@vnu.edu.vn"},
+        {"id": "23020003", "name": "Le Van C", "email": "c@vnu.edu.vn"},
     ]
-    
-    # Tạo list hiển thị cho Selectbox (Format: "Name - ID")
     search_options = {f"{s['name']} - {s['id']}": s for s in mock_database}
     
-    # Thanh tìm kiếm (Selectbox hoạt động như search)
     selected_option = st.selectbox(
-        "Search student", 
+        "Tìm kiếm", 
         options=list(search_options.keys()), 
         index=None, 
-        placeholder="Type name or ID to search..."
+        placeholder="Nhập tên hoặc mã SV..."
     )
     
     if selected_option:
-        # Lấy thông tin chi tiết từ selection
         student_data = search_options[selected_option]
+        st.info(f"Đã chọn: **{student_data['name']}**")
         
-        st.info(f"Selected: **{student_data['name']}** ({student_data['email']})")
-        
-        if st.button("Add to Roster", type="primary"):
-            # Kiểm tra xem đã có trong lớp chưa để tránh trùng
-            existing_ids = [s['id'] for s in st.session_state.student_roster if s['id'] != 'none']
+        if st.button("Thêm vào danh sách", type="primary"):
+            payload = {
+                "student_id": student_data['id'],
+                "name": student_data['name'],
+                "email": student_data['email'],
+                "file_url": None # Chưa có bài làm
+            }
             
-            if student_data['id'] in existing_ids:
-                st.warning("This student is already in the roster.")
-            else:
-                # Thêm vào roster (chưa có file)
-                new_student = {
-                    "id": student_data['id'],
-                    "name": student_data['name'],
-                    "email": student_data['email'],
-                    "file": None, # Chưa có file
-                    "processed_content": None
-                }
-                st.session_state.student_roster.append(new_student)
-                st.success(f"Successfully added {student_data['name']}!")
+            if api.add_student_to_roster(exam_id, payload):
+                st.success(f"Đã thêm {student_data['name']}!")
+                st.session_state.force_reload = True
                 time.sleep(0.5)
                 st.rerun()
+            else:
+                st.warning("Sinh viên này có thể đã có trong danh sách.")
+
 # --- HÀM RENDER CHÍNH ---
 def render():
     """Vẽ nội dung của tab Student Answers"""
+    exam_id = st.session_state.get("current_exam_id")
+    if not exam_id: return
+
+    # 1. Check điều kiện tiên quyết
     if not st.session_state.get("rubric_complete", False):
-        st.warning("Vui lòng hoàn thành và xử lý 'Rubric' trước.")
+        st.warning("Vui lòng hoàn thành bước 'Rubric' trước.")
         return
 
+    # 2. Lấy dữ liệu Roster từ Session (Được load từ API bởi New_Exam.py)
+    roster = st.session_state.get("student_roster", [])
+
+    # -------------------------------------------------------
+    # TRẠNG THÁI 1: PENDING (Chưa xử lý AI)
+    # -------------------------------------------------------
     if st.session_state.answers_status == "pending":
-        # Nút bấm
-        col_btn_1, col_btn_2, _ = st.columns([1, 1, 3])
-        if col_btn_1.button("Upload PDF ➕", type="primary", use_container_width=True):
+        # Toolbar
+        c1, c2, c3 = st.columns([1.5, 1.5, 4])
+        if c1.button("➕ Upload Bài Làm", type="primary", use_container_width=True):
             upload_and_link_dialog()
-        if col_btn_2.button("Add Student ➕", use_container_width=True):
+        if c2.button("➕ Thêm SV từ DB", use_container_width=True):
             add_student_dialog()
-        st.divider()
-
-        # Bảng Roster
-        st.subheader("Student Roster")
         
-        col_h1, col_h2, col_h3, col_h4, col_h5 = st.columns([3, 2, 3, 1, 1])
-        col_h1.write("**Name**")
-        col_h2.write("**Student ID**")
-        col_h3.write("**Email**")
-        col_h4.write("**View**")
-        col_h5.write("**Status**")    
-        for student in st.session_state.student_roster:
-                col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns([3, 2, 3, 1, 1])
-                
-                col_d1.write(student["name"])
-                col_d2.write(student["id"])
-                col_d3.write(student["email"])
-                
-                # Nút "View" (Giữ nguyên)
-                if student.get("file"): 
-                    if col_d4.button("View", key=f"view_{student['id']}"):
-                        @st.dialog("Student Details", width="large")
-                        def show_details(s):
-                            with st.container(height=600):
-                        # Chia làm 2 cột: Cột trái (Info), Cột phải (Bài làm)
-                                col_info, col_paper = st.columns([1, 2]) 
-                                
-                                with col_info:
-                                    st.subheader(s["name"])
-                                    st.write(f"**ID:** {s['id']}")
-                                    st.write(f"**Email:** {s['email']}")
-                                    st.write(f"**File Linked:** {s.get('file', 'None')}")
-                                
-                                with col_paper:
-                                    st.subheader("Exam Paper Preview")
-                                    if s.get('file'):
-                                        # Hiển thị ảnh giả lập bài làm (hoặc PDF viewer)
-                                        st.image("https://i.imgur.com/gKk9Nf2.png", caption=f"File: {s['file']}")
-                                    else:
-                                        st.info("No paper linked yet.")
-                        show_details(student)
-                else:
-                    # Nếu chưa có bài làm, để trống hoặc hiện dấu gạch ngang
-                    col_d4.write("-")
-
-                # Trạng thái (Status) (Giữ nguyên)
-                if student["file"] is not None:
-                    col_d5.success("Matched", icon="✅")
-                else:
-                    col_d5.warning("None", icon="⚠️")
-            
-            # --- Form Tùy chọn (Options) (Giữ nguyên) ---
         st.divider()
-        st.subheader("Processing Options")
+
+        # Danh sách sinh viên (Roster Table)
+        st.write(f"**Danh sách lớp ({len(roster)} sinh viên)**")
+        
+        # Header bảng
+        cols = st.columns([3, 2, 3, 2, 2])
+        cols[0].markdown("**Họ Tên**")
+        cols[1].markdown("**Mã SV**")
+        cols[2].markdown("**Email**")
+        cols[3].markdown("**File Bài Làm**")
+        cols[4].markdown("**Trạng Thái**")
+        
+        if not roster:
+            st.info("Chưa có sinh viên nào. Hãy upload bài làm hoặc thêm từ DB.")
+        
+        for s in roster:
+            # Map data an toàn
+            s_name = s.get("student_name", s.get("name", "Unknown"))
+            s_id = s.get("student_id", s.get("id", ""))
+            s_email = s.get("student_email", s.get("email", ""))
+            s_file = s.get("file_url", s.get("file")) # Lấy URL file
             
-        with st.form("answers_options_form"):
-            st.selectbox("Submission Type", ["Handwritten", "Typed"]) 
-            with st.expander("» Advanced"):
-                st.selectbox("OCR Method", ["Azure Vision", "OpenAI: GPT-4o"], key="ans_ocr")
-                st.selectbox("GPT Model", ["OpenAI: GPT-4o", "OpenAI: GPT-4"], key="ans_gpt")
-                st.selectbox("Vision Model", ["OpenAI: GPT-4o", "Google Gemini"], key="ans_vis")
+            c = st.columns([3, 2, 3, 2, 2])
+            c[0].write(s_name)
+            c[1].write(s_id)
+            c[2].write(s_email)
+            
+            # Cột File: Hiển thị link hoặc nút xem
+            if s_file:
+                c[3].write(f"📄 [Xem File]({s_file})") # Giả sử file_url là link xem được
+            else:
+                c[3].write("-")
+                
+            # Cột Trạng thái
+            if s_file:
+                c[4].success("Đã nộp", icon="✅")
+            else:
+                c[4].warning("Chưa nộp", icon="⚠️")
+                
+        st.divider()
+        
+        # --- FORM XỬ LÝ (Processing Options) ---
+        # Form này chỉ hiện khi ở trạng thái Pending
+        st.subheader("Tùy chọn xử lý AI")
+        
+        with st.form("answers_process_form"):
+            c1, c2 = st.columns(2)
+            c1.selectbox("Loại bài làm", ["Viết tay (Handwritten)", "Đánh máy (Typed)"])
+            c2.selectbox("Mức độ chi tiết", ["Tiêu chuẩn", "Chi tiết từng bước"])
+            
+            with st.expander("Cấu hình nâng cao"):
+                st.selectbox("OCR Engine", ["Azure AI Vision", "Google Vision"], key="ans_ocr")
+                st.selectbox("LLM Model", ["OpenAI: GPT-4o", "OpenAI: GPT-4"], key="ans_gpt")
 
-            if st.form_submit_button("Begin Processing →", type="primary"):
-                st.session_state.answers_status = "processing"
-                with st.spinner("Đang xử lý bài làm của sinh viên... (Fake 3 giây)"):
-                    time.sleep(3) 
+            # Nút Submit Form
+            submitted = st.form_submit_button("🚀 Bắt đầu Chấm điểm (Begin Processing)", type="primary")
+            
+            if submitted:
+                # Gọi API xử lý
+                if api.process_answers(exam_id):
+                    st.session_state.answers_status = "processing"
+                    with st.spinner("Đang gửi lệnh xử lý lên server..."):
+                        time.sleep(1.5)
                     
-                st.session_state.answers_status = "processed"
-                st.session_state.answers_processing_complete = True
-                st.success("Xử lý hoàn tất!")
-                st.rerun()
+                    # Sau khi xử lý xong (giả lập)
+                    st.session_state.answers_status = "processed"
+                    st.session_state.answers_processing_complete = True
+                    st.session_state.force_reload = True # Reload data mới (có kết quả OCR)
+                    st.success("Đã gửi lệnh xử lý thành công!")
+                    st.rerun()
+                else:
+                    st.error("Lỗi: Không thể gửi lệnh xử lý.")
 
+    # -------------------------------------------------------
+    # TRẠNG THÁI 2: PROCESSED (Đã có kết quả)
+    # -------------------------------------------------------
     elif st.session_state.answers_status == "processed":
+        st.success("✅ Đã xử lý xong bài làm của sinh viên.")
         
-        st.subheader("Processed Student Answers")
+        search = st.text_input("Tìm kiếm bài làm...", placeholder="Nhập tên hoặc mã SV...")
         
-        # Thanh tìm kiếm (Giả lập)
-        st.text_input("Search Student...", placeholder="🔍 Search by name, email, or ID", label_visibility="collapsed")
-        
-        # Lặp qua các sinh viên và hiển thị bài làm
-        for student in st.session_state.student_roster:
+        # Filter danh sách hiển thị
+        display_list = roster
+        if search:
+            s_lower = search.lower()
+            display_list = [s for s in roster if s_lower in s.get("student_name", "").lower()]
             
-            processed_data = student.get("processed_content")
-            if not processed_data:
-                continue
-                
-            # Dùng st.expander cho mỗi sinh viên
-            with st.expander(f"**{student['name']}** - {student['id']} - ({student.get('file', 'No File')})"):
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.subheader("Original PDF (View)")
-                    st.write(f"Hiển thị file PDF `{student.get('file', '')}` ở đây...")
-                    # st.image(...) hoặc st.pdf_viewer(...)
-                
-                with col2:
-                    st.subheader("Student Answer (AI Extracted)")
-                    
-                    # Dữ liệu mock từ state
-                    q_text = student["processed_content"]["question_1_text"]
-                    q_latex = student["processed_content"]["question_1_latex"]
-                    
-                    # Tabs (Text và LaTeX)
-                    tab_text, tab_latex = st.tabs(["T (Text)", "T (LaTeX)"])
-                    
-                    with tab_text:
-                        # Hiển thị LaTeX đã render
-                        st.markdown(q_text)
-                        
-                    with tab_latex:
-                        # Hiển thị code LaTeX (có thể chỉnh sửa)
-                        st.text_area("Edit LaTeX", value=q_latex, height=200)
-    
+        for s in display_list:
+            s_name = s.get("student_name", "Unknown")
+            # Hiển thị kết quả OCR (giả lập hiển thị expander)
+            with st.expander(f"Bài làm: {s_name}"):
+                c1, c2 = st.columns(2)
+                c1.info("Bản gốc (PDF)")
+                # c1.image(...) 
+                c2.success("AI Trích xuất (OCR)")
+                c2.write("Nội dung bài làm sẽ hiện ở đây...")
