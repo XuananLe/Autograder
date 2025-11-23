@@ -1,112 +1,110 @@
 # pages/4_Exam_Detail.py
 import streamlit as st
+from services import api
+import time
 
-st.set_page_config(
-    page_title="Exam Details",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="Chi Tiết Bài Thi", layout="wide")
 
-# --- KHÔNG CẦN BẢO VỆ (GUARD) ---
+# 1. Lấy dữ liệu từ session (được truyền từ Dashboard)
+exam_data = st.session_state.get("selected_exam_data")
 
-# 1. Đọc "exam_id" từ session_state (Cách này ổn định)
-selected_exam_id = st.session_state.get("current_exam_id")
-
-# 2. Tìm dữ liệu exam (Giữ nguyên)
-exam_data = None
-if 'exams' in st.session_state and selected_exam_id:
-    for exam in st.session_state.exams:
-        if exam["id"] == selected_exam_id:
-            exam_data = exam
-            break
-
-# 3. Xử lý lỗi
 if not exam_data:
-    st.error("Could not find the selected exam.")
-    if st.button("< Back to Dashboard"):
+    st.error("Chưa chọn bài thi nào.")
+    if st.button("< Quay lại Dashboard"):
         st.switch_page("pages/Student_Dashboard.py")
     st.stop()
 
-# 4. Hiển thị trang chi tiết
-# Nút quay về (Dùng st.button + st.switch_page)
-if st.button("< Back to AI Grader"):
+# Nút quay về
+if st.button("< Quay lại Dashboard"):
     st.switch_page("pages/Student_Dashboard.py")
-    
-st.title(exam_data['title'])
+
+# Tiêu đề & Thông tin chung
+st.title(exam_data.get('title'))
+st.caption(f"Môn học: {exam_data.get('course_name')}")
 
 col_main, col_sidebar = st.columns([2, 1])
 
-# --- CỘT TRÁI (Đề bài) ---
+# --- CỘT TRÁI: Đề bài ---
 with col_main:
-    st.header("Exam Paper")
-    st.image(exam_data["exam_file"], use_container_width=True)
+    st.header("Đề Bài")
+    # Trong thực tế, bạn có thể lấy URL đề bài từ API nếu có. 
+    # Hiện tại hiển thị ảnh mẫu.
+    st.image("https://i.imgur.com/rNnF4Wf.png", caption="Đề thi", use_container_width=True)
 
-# --- CỘT PHẢI (Thông tin) ---
+# --- CỘT PHẢI: Trạng thái & Nộp bài ---
 with col_sidebar:
+    status = exam_data.get('status')
+    score = exam_data.get('score')
+    submission_id = exam_data.get('submission_id')
+    existing_file = exam_data.get('file_url')
+    feedback = exam_data.get('feedback')
+
+    # Kiểm tra trạng thái để hiển thị Form Nộp Bài hay Kết Quả
+    # Logic: Nếu chưa có file nộp (hoặc status là pending/unfinished) -> Hiện Form
+    is_submitted = existing_file is not None
     
-    # --- *** BẮT ĐẦU SỬA ĐỔI LOGIC *** ---
-    
-    # TRƯỜNG HỢP 1: UNFINISHED (Ảnh 2 - Cho phép nộp bài)
-    if exam_data["status"] == "Unfinished":
-        # Hiển thị các hộp trạng thái (nhưng làm mờ)
+    if not is_submitted:
+        # --- TRƯỜNG HỢP 1: CHƯA NỘP ---
         cols_status = st.columns(2)
-        with cols_status[0]:
-            st.info("Not Submitted", icon="❕") # Màu xanh dương
-        with cols_status[1]:
-            st.metric("Points", "--")
+        cols_status[0].info("Chưa nộp bài", icon="❕")
+        cols_status[1].metric("Điểm", "--")
 
         st.divider()
-        st.subheader("Submitting: upload a file")
-        st.warning("You have not submitted this exam yet.")
+        st.subheader("Nộp Bài")
         
-        uploaded_file = st.file_uploader("Upload your file here")
+        uploaded_file = st.file_uploader("Tải lên bài làm (PDF)", type=["pdf"])
         
-        if uploaded_file is not None:
-            if st.button("Submit Exam", type="primary"):
-                # Cập nhật state
-                exam_data["status"] = "finished" 
-                exam_data["submission_file"] = uploaded_file.name
-                exam_data["feedback"] = "Submitted! Waiting for grading."
-                st.success("Exam Submitted!")
-                st.rerun()
+        if uploaded_file:
+            if st.button("Nộp Bài Thi", type="primary", use_container_width=True):
+                try:
+                    # B1: Upload file lên Server lấy URL
+                    with st.spinner("Đang tải file lên server..."):
+                        upload_res = api.upload_file(uploaded_file)
+                    
+                    if upload_res:
+                        file_url = upload_res.get('url')
+                        
+                        # B2: Gọi API Submit (Update DB với link file mới)
+                        if api.submit_exam_paper(submission_id, file_url):
+                            st.success("Nộp bài thành công!")
+                            st.balloons()
+                            
+                            # Cập nhật lại trạng thái local để UI tự đổi ngay lập tức
+                            exam_data['status'] = 'finished'
+                            exam_data['file_url'] = file_url
+                            st.session_state.selected_exam_data = exam_data # Lưu ngược lại vào session
+                            
+                            time.sleep(1.5)
+                            st.rerun()
+                        else:
+                            st.error("Lỗi: Không thể cập nhật trạng thái nộp bài.")
+                    else:
+                        st.error("Lỗi upload file.")
+                        
+                except Exception as e:
+                    st.error(f"Đã xảy ra lỗi: {e}")
 
-    # TRƯỜNG HỢP 2: FINISHED hoặc GRADED (Ảnh 3 - Hiển thị chi tiết)
     else:
-        # Hiển thị các hộp trạng thái (với dữ liệu)
+        # --- TRƯỜNG HỢP 2: ĐÃ NỘP / ĐÃ CHẤM ---
         cols_status = st.columns(2)
-        with cols_status[0]:
-            # Dùng st.error để có hộp màu đỏ/nâu
-            st.error("Submitted", icon="✅") 
-        with cols_status[1]:
-            if exam_data['points'] is not None:
-                # Dùng st.success để có hộp màu xanh lá
-                st.success(f"Points: {exam_data['points']}", icon="⭐")
-
-        st.divider()
+        cols_status[0].success("Đã nộp", icon="✅")
         
-        st.subheader("Submitting: upload a file") # Tiêu đề tĩnh
-        
-        st.write("**Submission**")
-        st.caption("Submitted!")
-        st.caption("Oct 16 at 11:59pm (Mock Date)")
-        st.caption("Submission Details") # Chỉ là text
-        
-        if exam_data.get("submission_file"):
-            fake_file_content = f"Mock data for {exam_data['submission_file']}"
-            st.download_button(
-                label=f"Download {exam_data['submission_file']}",
-                data=fake_file_content,
-                file_name=exam_data["submission_file"]
-            )
-        
-        st.divider()
-
-        # Hiển thị Feedback
-        st.subheader("Feedback:")
-        if exam_data.get("feedback"):
-            # Hiển thị feedback dưới dạng văn bản thuần
-            st.write(exam_data["feedback"])
+        if score is not None:
+            cols_status[1].metric("Điểm", f"{score}/10")
         else:
-            st.info("No feedback yet.")
-            
-    # --- *** LOGIC KẾT THÚC TẠI ĐÂY *** ---
+            cols_status[1].caption("Đang chờ chấm...")
+
+        st.divider()
+        st.subheader("Bài làm của bạn")
+        
+        if existing_file:
+            st.write(f"File đã nộp: `{existing_file}`")
+            # Link download (giả lập mở tab mới)
+            st.link_button("📄 Xem bài làm", existing_file)
+        
+        st.divider()
+        st.subheader("Nhận xét của Giáo viên / AI")
+        if feedback:
+            st.info(feedback)
+        else:
+            st.caption("Chưa có nhận xét.")

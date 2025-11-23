@@ -89,3 +89,27 @@ def process_rubric(exam_id: str, options: dict):
     except Exception as e:
         st.error(f"API Error: {e}")
         return False
+    
+def get_student_exams(student_id: str):
+    """
+    Lấy danh sách bài thi theo ID sinh viên.
+    """
+    try:
+        # Gọi endpoint lọc theo ID
+        resp = requests.get(f"{API_URL}/submissions/student/{student_id}")
+        return resp.json() if resp.status_code == 200 else []
+    except Exception as e:
+        print(f"Error fetching exams: {e}")
+        return []
+
+# ... (các hàm submit giữ nguyên)
+def submit_exam_paper(submission_id: str, file_url: str):
+    try:
+        resp = requests.post(
+            f"{API_URL}/submissions/{submission_id}/submit", 
+            json={"file_url": file_url}
+        )
+        return resp.status_code == 200
+    except Exception as e:
+        print(f"Error submitting: {e}")
+        return False
