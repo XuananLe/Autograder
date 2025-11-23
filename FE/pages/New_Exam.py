@@ -155,19 +155,19 @@ def nextStep(msg):
 # Hiển thị nút Next ở cuối trang
 if current_step_idx == 0: # Info
     with col2:
-        if st.button("Tiếp theo: Rubric →", type="primary", use_container_width=True, 
+        if st.button("Next: Rubric →", type="primary", use_container_width=True, 
                      disabled=(not st.session_state.get("info_complete", False))):
-            nextStep("Đã lưu Info! Chuyển sang Rubric.")
+            nextStep("Saved Info")
 
 elif current_step_idx == 1: # Rubric
     with col1:
         if st.session_state.rubric_status == "processed":
-            st.button("⤓ Tải Rubric", key="footer_dl_rubric")
+            st.button("⤓ Download Rubric", key="footer_dl_rubric")
     with col2:
         ready = st.session_state.get("rubric_status") == "processed"
-        if st.button("Tiếp theo: Bài làm SV →", type="primary", use_container_width=True, disabled=not ready):
+        if st.button("Next: Student Answers →", type="primary", use_container_width=True, disabled=not ready):
             st.session_state.rubric_complete = True
-            nextStep("Đã xong Rubric! Chuyển sang Bài làm.")
+            nextStep("Saved Rubric")
 
 elif current_step_idx == 2: # Answers
     with col1:
@@ -177,13 +177,13 @@ elif current_step_idx == 2: # Answers
             st.rerun()
     with col2:
         ready = st.session_state.get("answers_processing_complete", False)
-        if st.button("Tiếp theo: Chấm điểm →", type="primary", use_container_width=True, disabled=not ready):
-            nextStep("Đã xử lý xong! Chuyển sang Chấm điểm.")
+        if st.button("Next: Grading →", type="primary", use_container_width=True, disabled=not ready):
+            nextStep("Processed")
 
 elif current_step_idx == 3: # Grading
     with col1:
-        st.button("⤓ Tải Báo cáo")
+        st.button("⤓ Download report")
     with col2:
         is_graded = st.session_state.get("grading_status") == "processed"
-        if st.button("Hoàn tất ✓", type="primary", use_container_width=True, disabled=not is_graded):
+        if st.button("Done ✓", type="primary", use_container_width=True, disabled=not is_graded):
             st.switch_page("Home.py")

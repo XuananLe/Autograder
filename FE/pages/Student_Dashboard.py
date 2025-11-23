@@ -1,109 +1,65 @@
 # pages/3_Student_Dashboard.py
 import streamlit as st
+from services import api
 
-st.set_page_config(
-    page_title="Student Dashboard",
-    layout="wide",
-    initial_sidebar_state="collapsed" # Ẩn thanh sidebar mặc định
-)
+st.set_page_config(page_title="Student Dashboard", layout="wide")
 
-# --- Dữ liệu Giả (Mock Data) ---
-# Khởi tạo state nếu nó chưa tồn tại (chỉ chạy 1 lần)
-if 'exams' not in st.session_state:
-    st.session_state.exams = [
-        {
-            "id": "ex001", 
-            "title": "Thị giác máy", 
-            "course": "INT3401E 2", 
-            "due": "11:59pm 22/10/2025", 
-            "status": "Unfinished", 
-            "points": None,
-            "feedback": "Not submitted yet.",
-            "submission_file": None,
-            "exam_file": "https://i.imgur.com/rNnF4Wf.png" # Ảnh mock đề thi
-        },
-        {
-            "id": "ex002", 
-            "title": "Thị giác máy", 
-            "course": "INT3401E 2", 
-            "due": "11:59pm 22/10/2025", 
-            "status": "finished", 
-            "points": None,
-            "feedback": "Waiting for grading.",
-            "submission_file": "My_Finished_Exam.pdf",
-            "exam_file": "https://i.imgur.com/rNnF4Wf.png"
-        },
-        {
-            "id": "ex003", 
-            "title": "Thị giác máy", 
-            "course": "INT3401E 2", 
-            "due": "11:59pm 22/10/2025", 
-            "status": "graded", 
-            "points": 10, 
-            "feedback": "you did very well. Hope you keep trying!", 
-            "submission_file": "NguyenThiPhuong_23021668-3.docx",
-            "exam_file": "https://i.imgur.com/rNnF4Wf.png"
-        },
-        {
-            "id": "ex004", 
-            "title": "Thị giác máy", 
-            "course": "INT3401E 2", 
-            "due": "11:59pm 22/10/2025", 
-            "status": "graded", 
-            "points": 8.5,
-            "feedback": "Good work, but check calculation on Q2.",
-            "submission_file": "My_Exam_8.5.pdf",
-            "exam_file": "https://i.imgur.com/rNnF4Wf.png"
-        }
-    ]
+st.title("Cổng Thi Trực Tuyến")
 
-st.title("Your exams")
+# --- Ô NHẬP MÃ SINH VIÊN ---
+col_input, _ = st.columns([1, 3])
+if "student_id_input" not in st.session_state:
+    st.session_state.student_id_input = "test" # Giá trị mặc định để test nhanh
 
-# --- Header của Bảng ---
+student_id = col_input.text_input("Nhập Mã Sinh Viên của bạn:", value=st.session_state.student_id_input)
+st.session_state.student_id_input = student_id # Lưu lại state
+
+if not student_id:
+    st.warning("Vui lòng nhập Mã Sinh Viên để xem bài thi.")
+    st.stop()
+
+# --- GỌI API LẤY DỮ LIỆU THEO ID ---
+with st.spinner(f"Đang tìm bài thi của SV: {student_id}..."):
+    my_exams = api.get_student_exams(student_id)
+
+# --- HIỂN THỊ KẾT QUẢ ---
+st.caption(f"Tìm thấy {len(my_exams)} bài thi.")
 cols_h = st.columns([3, 2, 2, 1])
-cols_h[0].write("**Title**")
-cols_h[1].write("**Due**")
-cols_h[2].write("**Status**")
-cols_h[3].write("**Points**")
+cols_h[0].markdown("**Tên Bài Thi**")
+cols_h[1].markdown("**Hạn Nộp**")
+cols_h[2].markdown("**Trạng Thái**")
+cols_h[3].markdown("**Điểm**")
 st.divider()
 
-# --- Lặp qua và hiển thị danh sách Exam ---
-for exam in st.session_state.exams:
-    
-    # Dùng st.container(border=True) để tạo "thẻ"
-    with st.container(border=True):
-        cols = st.columns([3, 2, 2, 1])
-        
-        # Cột 1: Tiêu đề (có thể click)
-        # CẬP NHẬT: Thêm query_params để giữ trạng thái "student"
-        # cols[0].page_link(
-        #     "pages/4_Exam_Detail.py", 
-        #     label=f"**{exam['title']}**\n\n{exam['course']}", 
-        #     icon="📄",
-        # )
-        button_label = f"**{exam['title']}**\n\n{exam['course']}"
-        
-        # 2. Dùng st.button với key duy nhất
-        if cols[0].button(button_label, key=f"go_to_{exam['id']}", use_container_width=True):
-            # 3. Lưu ID vào state
-            st.session_state.current_exam_id = exam["id"] 
-            # 4. Chuyển trang
-            st.switch_page("pages/Exam_Detail.py")
-        
-        # Cột 2: Due
-        cols[1].write(exam["due"])
-        
-        # Cột 3: Status (dùng màu)
-        if exam["status"] == "Unfinished":
-            cols[2].error(exam["status"], icon="❗")
-        elif exam["status"] == "graded":
-            cols[2].success(exam["status"], icon="✅")
-        else:
-            cols[2].info(exam["status"], icon="🔵") # "finished"
-        
-        # Cột 4: Points
-        cols[3].metric(
-            "Points", # Thêm 1 nhãn (ví dụ: "Points")
-            exam["points"] if exam["points"] is not None else "--",
-            label_visibility="collapsed" # Ẩn nhãn đi
-        )
+if not my_exams:
+    st.info(f"Không tìm thấy bài thi nào cho ID: **{student_id}**")
+    st.write("Gợi ý: Hãy kiểm tra lại xem Giáo viên đã 'Add Student' với đúng ID này chưa.")
+else:
+    for exam in my_exams:
+        with st.container(border=True):
+            cols = st.columns([3, 2, 2, 1])
+            
+            title = exam.get('title', 'Untitled')
+            course = exam.get('course_name', 'Unknown')
+            submission_id = exam.get('submission_id')
+            
+            # Nút bấm vào thi
+            btn_label = f"**{title}**\n\n{course}"
+            if cols[0].button(btn_label, key=f"btn_{submission_id}", use_container_width=True):
+                st.session_state.selected_exam_data = exam 
+                st.switch_page("pages/Exam_Detail.py")
+            
+            due = exam.get('due_date')
+            cols[1].write(due[:10] if due else "--")
+            
+            status = exam.get('status', 'Unfinished')
+            if status in ["Unfinished", "pending"]:
+                cols[2].error("Chưa nộp", icon="❗")
+            elif status == "graded":
+                cols[2].success("Đã chấm", icon="✅")
+            else:
+                cols[2].info("Đã nộp", icon="🔵")
+            
+            score = exam.get('score')
+            cols[3].metric("Điểm", score if score is not None else "--", label_visibility="collapsed")
+

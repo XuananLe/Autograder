@@ -1,9 +1,13 @@
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
 from app.models.submission import Submission
-from app.schemas.submission import SubmissionResponse, StudentLink
+from app.schemas.submission import SubmissionResponse, StudentLink, StudentExamResponse
 from beanie import PydanticObjectId
 import shutil # Dùng tạm để lưu file local
+from app.models.exam import Exam
+from pydantic import BaseModel
+
 
 router = APIRouter()
 
@@ -101,3 +105,66 @@ async def get_student_exams(student_id: str):
                 "exam_id": str(exam.id)
             })
     return results
+
+@router.get("/student/{student_id}", response_model=List[StudentExamResponse])
+async def get_student_dashboard(student_id: str):
+    """
+    Lấy danh sách bài thi của một sinh viên cụ thể.
+    """
+    # Tìm chính xác theo student_id
+    submissions = await Submission.find(Submission.student_id == student_id).to_list()
+    
+    result = []
+    for sub in submissions:
+        # Thử tìm thông tin đề thi
+        try:
+            exam = await Exam.get(sub.exam_id)
+        except:
+            exam = None
+
+        # Mặc định nếu không tìm thấy Exam (do đã bị xóa)
+        exam_title = "Bài thi không xác định (Đã xóa)"
+        course_name = "N/A"
+        due_date = None
+        
+        if exam:
+            exam_title = exam.title
+            course_name = exam.course_title or exam.course_name or "Unknown Course"
+            due_date = exam.due_date
+
+        # Logic map trạng thái
+        display_status = sub.status
+        if sub.status == "pending" and not sub.file_url:
+            display_status = "Unfinished"
+        elif sub.status == "pending" and sub.file_url:
+            display_status = "finished"
+        elif sub.status == "processed":
+            display_status = "finished"
+        
+        result.append(StudentExamResponse(
+            exam_id=str(sub.exam_id),
+            submission_id=str(sub.id),
+            title=exam_title,
+            course_name=course_name,
+            due_date=due_date,
+            status=display_status,
+            score=sub.total_score,
+            feedback=sub.general_feedback,
+            file_url=sub.file_url
+        ))
+    return result
+
+# ... (Giữ nguyên phần submit bên dưới)
+class SubmitRequest(BaseModel):
+    file_url: str
+
+@router.post("/{submission_id}/submit")
+async def submit_assignment(submission_id: PydanticObjectId, payload: SubmitRequest):
+    sub = await Submission.get(submission_id)
+    if not sub:
+        raise HTTPException(404, "Submission not found")
+    sub.file_url = payload.file_url
+    sub.status = "processed"
+    sub.submitted_at = datetime.now()
+    await sub.save()
+    return {"message": "Submitted successfully"}
